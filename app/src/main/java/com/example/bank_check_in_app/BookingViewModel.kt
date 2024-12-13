@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.google.gson.Gson
+
 
 class BookingViewModel(
     private val apiService: ApiService
@@ -21,6 +23,13 @@ class BookingViewModel(
 
     private val _allIsLoading = MutableStateFlow(false)
     val allIsLoading: StateFlow<Boolean> = _allIsLoading.asStateFlow()
+
+    private val _isCreatingBooking = MutableStateFlow(false)
+    val isCreatingBooking: StateFlow<Boolean> = _isCreatingBooking.asStateFlow()
+
+    private val _createBookingError = MutableStateFlow<String?>(null)
+    val createBookingError: StateFlow<String?> = _createBookingError.asStateFlow()
+
 
     fun fetchTodayBookings() {
         viewModelScope.launch {
@@ -70,6 +79,37 @@ class BookingViewModel(
             } catch (e: Exception) {
                 println("Error cancelling booking: ${e.message}")
             }
+        }
+    }
+
+
+    suspend fun createBooking(branchId: String, date: String): Boolean {
+        _isCreatingBooking.value = true
+        _createBookingError.value = null
+        
+        return try {
+            val request = CreateBookingRequest(branchId, date)
+            val response = apiService.createBooking(request)
+            
+            if (response.isSuccessful) {
+                true
+            } else {
+                // Parse error response
+                val errorBody = response.errorBody()?.string()
+                val errorMessage = try {
+                    val errorResponse = Gson().fromJson(errorBody, ErrorResponse::class.java)
+                    errorResponse.message
+                } catch (e: Exception) {
+                    "Failed to create booking"
+                }
+                _createBookingError.value = errorMessage
+                false
+            }
+        } catch (e: Exception) {
+            _createBookingError.value = e.message ?: "Unknown error occurred"
+            false
+        } finally {
+            _isCreatingBooking.value = false
         }
     }
 }

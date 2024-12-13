@@ -8,12 +8,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -44,6 +45,8 @@ fun MainScreen(navController: NavController, viewModel: MainViewModel) {
         var password by remember { mutableStateOf("") }
         var isValidNationalID by remember { mutableStateOf(true) }
         var isValidPassword by remember { mutableStateOf(true) }
+        var passwordVisible by remember { mutableStateOf(false) }
+
 
         val loginState by viewModel.loginState.collectAsState()
         val snackbarHostState = remember { SnackbarHostState() }
@@ -138,6 +141,30 @@ fun MainScreen(navController: NavController, viewModel: MainViewModel) {
                                 },
                                 isError = !isValidPassword,
                                 placeholder = { Text("Password") },
+                                visualTransformation = if (passwordVisible) {
+                                        VisualTransformation.None
+                                    } else {
+                                        PasswordVisualTransformation()
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                trailingIcon = {
+                                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                        Icon(
+                                            painter = painterResource(
+                                                id = if (passwordVisible) {
+                                                        R.drawable.baseline_visibility_off_24
+                                                } else {
+                                                        R.drawable.baseline_visibility_24 
+                                                }
+                                            ),
+                                            contentDescription = if (passwordVisible) {
+                                                "Hide password"
+                                            } else {
+                                                "Show password"
+                                            }
+                                        )
+                                    }
+                                },
                                 modifier = Modifier.fillMaxWidth()
                         )
 

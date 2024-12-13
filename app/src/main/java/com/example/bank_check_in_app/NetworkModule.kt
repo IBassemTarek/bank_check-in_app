@@ -7,7 +7,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object NetworkModule {
-    private const val BASE_URL = "https://92dc-156-218-41-160.ngrok-free.app/api/v1/"
+    private const val BASE_URL = "https://2b2c-156-218-41-160.ngrok-free.app/api/v1/"
 
     fun createApiService(context: Context): ApiService {
         val tokenManager = TokenManager(context)

@@ -17,11 +17,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
  
  
@@ -34,15 +41,80 @@ fun newBookingsScreen(
 ) {   
     val branches = branchViewModel.branches.collectAsStateWithLifecycle()
     val isLoading = branchViewModel.isLoading.collectAsStateWithLifecycle()
+    val isCreatingBooking = bookingViewModel.isCreatingBooking.collectAsStateWithLifecycle()
+    val createBookingError = bookingViewModel.createBookingError.collectAsStateWithLifecycle()
+
     var selectedBranch by remember { mutableStateOf<BranchResponse?>(null) }
     var expanded by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Show error message if there's an error
+    LaunchedEffect(createBookingError.value) {
+        createBookingError.value?.let { error ->
+            snackbarHostState.showSnackbar(
+                message = error,
+                duration = SnackbarDuration.Long,
+                withDismissAction = true
+            )
+        }
+    }
+
+      // Date picker state with explicit type
+       // Date picker state
+    var showDatePicker by remember { mutableStateOf(false) }
+    var selectedDateMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+    val displayFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
+    
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = selectedDateMillis
+    )
+
+    // Update selectedDate when date is picked
+    LaunchedEffect(datePickerState.selectedDateMillis) {
+        datePickerState.selectedDateMillis?.let {
+            selectedDateMillis = it
+        }
+    }
+
+    
     
         // Fetch bookings when screen opens
         LaunchedEffect(Unit) {
             branchViewModel.fetchBranches()
         }
 
+        if (showDatePicker) {
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = { showDatePicker = false }) {
+                        Text("OK")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDatePicker = false }) {
+                        Text("Cancel")
+                    }
+                }
+            ) {
+                DatePicker(
+                    state = datePickerState,
+                    showModeToggle = false
+                )
+            }
+        }
+
         Scaffold(
+            snackbarHost = {
+                SnackbarHost(hostState = snackbarHostState) { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
         ) { paddingValues ->
             Column(
                 modifier = Modifier
@@ -160,7 +232,73 @@ fun newBookingsScreen(
                         }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                      // Date Selection
+                      OutlinedTextField(
+                        value = LocalDate.ofEpochDay(selectedDateMillis / (24 * 60 * 60 * 1000))
+                        .format(displayFormatter),
+                        onValueChange = {},
+                        enabled = false,
+                        readOnly = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                            disabledContainerColor = Color.Transparent,
+                            disabledBorderColor = MaterialTheme.colorScheme.outline,
+                            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            disabledTrailingIconColor = MaterialTheme.colorScheme.onSurface,
+                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        label = { Text("Date") },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.DateRange,  // Changed to DateRange
+                                contentDescription = "Select Date",
+                                modifier = Modifier.clickable { showDatePicker = true }
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showDatePicker = true }
+                    )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = {
+                    scope.launch {
+                        selectedBranch?.id?.let { branchId ->
+                            val isoDate = LocalDate.ofEpochDay(selectedDateMillis / (24 * 60 * 60 * 1000))
+                                .atStartOfDay()
+                                .atZone(ZoneOffset.UTC)
+                                .toInstant()
+                                .toString()
+                            
+                            val success = bookingViewModel.createBooking(branchId, isoDate)
+                            if (success) {
+                                navController.popBackStack()
+                            }
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 16.dp),  // Added horizontal padding
+                shape = RoundedCornerShape(4.dp),
+                enabled = !isCreatingBooking.value && selectedBranch != null
+            ) {
+                    if (isCreatingBooking.value) {
+                            CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary
+                            )
+                    } else {
+                            Text("Create Booking")
+                    }
             }
         
         }

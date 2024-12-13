@@ -43,4 +43,7 @@ interface ApiService {
 
     @GET("branch")
     suspend fun getBranches(): Response<List<BranchResponse>>
+
+    @POST("booking")
+    suspend fun createBooking(@Body request: CreateBookingRequest): Response<Unit>
 }
